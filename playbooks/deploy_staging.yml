@@ -1,4 +1,4 @@
-- name: Deploay SocialPredict To Staging
+- name: Deploy SocialPredict To Staging
   hosts: digital_ocean
   gather_facts: false
   become: true
