@@ -1,0 +1,126 @@
+- name: Deploay SocialPredict To Staging
+  hosts: digital_ocean
+  gather_facts: false
+  become: true
+  vars:
+    db_pass: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters') }}"
+
+  tasks:
+    - name: Check if .env file exists
+      ansible.builtin.stat:
+        path: /opt/socialpredict/.env
+      register: env_file
+
+    - name: Check if traefik.yaml exists
+      ansible.builtin.stat:
+        path: /opt/socialpredict/data/traefik/config/traefik.yaml
+      register: traefik_file
+
+    - name: Stop old containers
+      ansible.builtin.command:
+        cmd: /usr/bin/docker compose --env-file /opt/socialpredict/.env --file /opt/socialpredict/scripts/docker-compose-prod.yaml down -v
+      when: env_file.stat.islnk is defined
+
+    - name: Delete old frontend image
+      ansible.builtin.shell:
+        cmd: if [ -n "$(docker images -q socialpredict-staging-frontend 2> /dev/null)" ]; then /usr/bin/docker rmi socialpredict-staging-frontend; fi
+
+    - name: Delete old backend image
+      ansible.builtin.shell:
+        cmd: if [ -n "$(docker images -q socialpredict-staging-backend 2> /dev/null)" ]; then /usr/bin/docker rmi socialpredict-staging-backend; fi
+
+    - name: Pull code from repository's main branch
+      ansible.builtin.git:
+        repo: 'https://github.com/ntoufoudis/socialpredict'
+        dest: /opt/socialpredict
+        single_branch: yes
+        version: main
+
+    - name: Create Env File
+      ansible.builtin.copy:
+        src: /opt/socialpredict/.env.example
+        dest: /opt/socialpredict/.env
+        remote_src: true
+        mode: preserve
+      when: env_file.stat.islnk is not defined
+
+    - name: Create traefik.yaml File
+      ansible.builtin.copy:
+        src: /opt/socialpredict/data/traefik/config/traefik.template
+        dest: /opt/socialpredict/data/traefik/config/traefik.yaml
+        remote_src: true
+        mode: preserve
+      when: traefik_file.stat.islnk is not defined
+
+    - name: Replace Email in Traefik.yaml
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/data/traefik/config/traefik.yaml
+        regexp: 'email: '
+        line: '      email: info@ntoufoudis.com'
+      when: traefik_file.stat.islnk is not defined
+
+    - name: Change APP_ENV in Env
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^APP_ENV='
+        line: APP_ENV=production
+      when: env_file.stat.islnk is not defined
+
+    - name: Generate Random Database Password
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^POSTGRES_PASSWORD='
+        line: POSTGRES_PASSWORD={{ db_pass}}
+      when: env_file.stat.islnk is not defined
+
+    - name: Replace Domain in Env
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^DOMAIN='
+        line: DOMAIN='newsocial.ntoufoudis.com'
+      when: env_file.stat.islnk is not defined
+
+    - name: Replace Domain_Url in Env
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^DOMAIN_URL='
+        line: DOMAIN_URL='https://newsocial.ntoufoudis.com'
+      when: env_file.stat.islnk is not defined
+
+    - name: Replace Api_Url in Env
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^API_URL='
+        line: API_URL='https://newsocial.ntoufoudis.com'
+      when: env_file.stat.islnk is not defined
+
+    - name: Replace Email in Env
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^EMAIL='
+        line: EMAIL='info@ntoufoudis.com'
+      when: env_file.stat.islnk is not defined
+
+    - name: Build new frontend image
+      ansible.builtin.command:
+        cmd: /usr/bin/docker build --no-cache -t socialpredict-staging-frontend -f /opt/socialpredict/docker/frontend/Dockerfile /opt/socialpredict/
+
+    - name: Build new backend image
+      ansible.builtin.command:
+        cmd: /usr/bin/docker build --no-cache -t socialpredict-staging-backend -f /opt/socialpredict/docker/backend/Dockerfile /opt/socialpredict/
+
+    - name: Replace Frontend Image Name in Env
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^FRONTEND_IMAGE_NAME='
+        line: FRONTEND_IMAGE_NAME='socialpredict-staging-frontend'
+
+    - name: Replace Backend Image Name in Env
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^BACKEND_IMAGE_NAME='
+        line: BACKEND_IMAGE_NAME='socialpredict-staging-backend'
+
+    - name: Start new containers
+      ansible.builtin.command:
+        cmd: /opt/socialpredict/SocialPredict up
