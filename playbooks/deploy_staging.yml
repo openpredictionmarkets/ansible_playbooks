@@ -17,7 +17,7 @@
       register: traefik_file
 
     - name: Get Docker Images
-      ansible.builtin.docker_host_info:
+      community.docker_host_info:
         images: yes
       register: image_info
 
