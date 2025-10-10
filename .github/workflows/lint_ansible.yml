@@ -19,3 +19,4 @@ jobs:
         uses: ansible/ansible-lint@v25.9.2
         with:
           working_directory: "playbooks"
+          requirements_file: "requirements/requirements.yml"
