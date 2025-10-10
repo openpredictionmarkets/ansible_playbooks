@@ -16,24 +16,30 @@
         path: /opt/socialpredict/data/traefik/config/traefik.yaml
       register: traefik_file
 
+    - name: Get Docker Images
+      ansible.builtin.docker_host_info:
+        images: yes
+      register: image_info
+
     - name: Stop old containers
       ansible.builtin.command:
         cmd: /usr/bin/docker compose --env-file /opt/socialpredict/.env --file /opt/socialpredict/scripts/docker-compose-prod.yaml down -v
       when: env_file.stat.islnk is defined
 
-    - name: Delete old frontend image
-      ansible.builtin.shell:
-        cmd: if [ -n "$(docker images -q socialpredict-staging-frontend 2> /dev/null)" ]; then /usr/bin/docker rmi socialpredict-staging-frontend; fi
-
-    - name: Delete old backend image
-      ansible.builtin.shell:
-        cmd: if [ -n "$(docker images -q socialpredict-staging-backend 2> /dev/null)" ]; then /usr/bin/docker rmi socialpredict-staging-backend; fi
+    - name: Delete Old Images
+      ansible.builtin.docker_image:
+        name: "{{ item.RepoTags | first }}"
+        state: absent
+      when: item.RepoTags == "socialpredict-staging-frontend:latest" or item.RepoTags is search('socialpredict-staging-backend:latest')
+      loop: "{{ image_info.images }}"
+      loop_control:
+        label: "{{ item.RepoTags | first }}"
 
     - name: Pull code from repository's main branch
       ansible.builtin.git:
         repo: 'https://github.com/ntoufoudis/socialpredict'
         dest: /opt/socialpredict
-        single_branch: yes
+        single_branch: true
         version: main
 
     - name: Create Env File
@@ -70,7 +76,7 @@
       ansible.builtin.lineinfile:
         path: /opt/socialpredict/.env
         regexp: '^POSTGRES_PASSWORD='
-        line: POSTGRES_PASSWORD={{ db_pass}}
+        line: POSTGRES_PASSWORD={{ db_pass }}
       when: env_file.stat.islnk is not defined
 
     - name: Replace Domain in Env
