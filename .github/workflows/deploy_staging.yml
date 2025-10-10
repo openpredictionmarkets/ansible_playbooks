@@ -2,6 +2,7 @@ name: Deploy to Staging with Ansible
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   deploy:
