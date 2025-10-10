@@ -6,7 +6,7 @@ on:
 jobs:
   deploy:
     name: Deploy Ansible Playbook
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: production
     steps:
       - name: Checkout repository
@@ -20,6 +20,8 @@ jobs:
         shell: bash
         run: |
           sudo apt update
+          sudo apt install software-properties-common
+          sudo add-apt-repository --yes --update ppa:ansible/ansible
           sudo apt install -y ansible
 
       - name: Run Ansible Playbook
@@ -27,4 +29,4 @@ jobs:
           STAGING_USER: ${{ secrets.STAGING_USER }}
           ANSIBLE_HOST_KEY_CHECKING: False
         run: |
-          ansible-playbook -i inventory/staging.yml playbooks/deploy_staging.yml --private-key private_key.pem -u '${{ secrets.STAGING_USER }}' --extra-vars "STAGING_HOST='${{ secrets.STAGING_HOST }}' STAGING_PORT='${{ secrets.STAGING_PORT }}' STAGING_DOMAIN='${{ secrets.STAGING_DOMAIN }} STAGING_EMAIL=${{ secrets.STAGING_EMAIL }}"
+          ansible-playbook -i inventory/staging.yml playbooks/deploy_staging.yml --private-key private_key.pem -u '${{ secrets.STAGING_USER }}' --extra-vars "STAGING_HOST='${{ secrets.STAGING_HOST }}' STAGING_PORT='${{ secrets.STAGING_PORT }}' STAGING_DOMAIN='${{ secrets.STAGING_DOMAIN }}' STAGING_EMAIL='${{ secrets.STAGING_EMAIL }}'"
