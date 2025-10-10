@@ -39,7 +39,7 @@
 
     - name: Pull code from repository's main branch
       ansible.builtin.git:
-        repo: 'https://github.com/ntoufoudis/socialpredict'
+        repo: 'https://github.com/openpredictionmarkets/socialpredict'
         dest: /opt/socialpredict
         single_branch: true
         version: main
