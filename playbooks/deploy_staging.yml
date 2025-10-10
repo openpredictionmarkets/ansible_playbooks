@@ -64,7 +64,7 @@
       ansible.builtin.lineinfile:
         path: /opt/socialpredict/data/traefik/config/traefik.yaml
         regexp: 'email: '
-        line: '      email: info@ntoufoudis.com'
+        line: '      email: {{ STAGING_EMAIL }}'
       when: traefik_file.stat.islnk is not defined
 
     - name: Change APP_ENV in Env
@@ -85,28 +85,28 @@
       ansible.builtin.lineinfile:
         path: /opt/socialpredict/.env
         regexp: '^DOMAIN='
-        line: DOMAIN='newsocial.ntoufoudis.com'
+        line: DOMAIN='{{ STAGING_DOMAIN }}'
       when: env_file.stat.islnk is not defined
 
     - name: Replace Domain_Url in Env
       ansible.builtin.lineinfile:
         path: /opt/socialpredict/.env
         regexp: '^DOMAIN_URL='
-        line: DOMAIN_URL='https://newsocial.ntoufoudis.com'
+        line: DOMAIN_URL='https://{{ STAGING_DOMAIN }}'
       when: env_file.stat.islnk is not defined
 
     - name: Replace Api_Url in Env
       ansible.builtin.lineinfile:
         path: /opt/socialpredict/.env
         regexp: '^API_URL='
-        line: API_URL='https://newsocial.ntoufoudis.com'
+        line: API_URL='https://{{ STAGING_DOMAIN }}'
       when: env_file.stat.islnk is not defined
 
     - name: Replace Email in Env
       ansible.builtin.lineinfile:
         path: /opt/socialpredict/.env
         regexp: '^EMAIL='
-        line: EMAIL='info@ntoufoudis.com'
+        line: EMAIL='{{ STAGING_EMAIL }}'
       when: env_file.stat.islnk is not defined
 
     - name: Build new frontend image
