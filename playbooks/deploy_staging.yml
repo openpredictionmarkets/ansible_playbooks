@@ -25,14 +25,14 @@
       ansible.builtin.command:
         cmd: /usr/bin/docker compose --env-file /opt/socialpredict/.env --file /opt/socialpredict/scripts/docker-compose-prod.yaml down -v
       register: stop_output
-      changed_when: stop_output.rc = 0
+      changed_when: stop_output.rc == 0
       when: env_file.stat.islnk is defined
 
     - name: Delete Old Images
       community.docker.docker_image:
         name: "{{ item.RepoTags | first }}"
         state: absent
-      when: item.RepoTags == "socialpredict-staging-frontend:latest" or item.RepoTags is search('socialpredict-staging-backend:latest')
+      when: item.RepoTags is search('socialpredict-staging-frontend:latest') or item.RepoTags is search('socialpredict-staging-backend:latest')
       loop: "{{ image_info.images }}"
       loop_control:
         label: "{{ item.RepoTags | first }}"
@@ -113,13 +113,15 @@
       ansible.builtin.command:
         cmd: /usr/bin/docker build --no-cache -t socialpredict-staging-frontend -f /opt/socialpredict/docker/frontend/Dockerfile /opt/socialpredict/
       register: frontend_output
-      changed_when: frontend_output.rc = 0
+      failed_when: frontend_output.rc != 0
+      changed_when: frontend_output.rc == 0
 
     - name: Build new backend image
       ansible.builtin.command:
-        cmd: /usr/bin/docker build --no-cache -t socialpredict-staging-backend -f /opt/socialpredict/docker/backend/Dockerfile /opt/socialpredict/i
+        cmd: /usr/bin/docker build --no-cache -t socialpredict-staging-backend -f /opt/socialpredict/docker/backend/Dockerfile /opt/socialpredict/
       register: backend_output
-      changed_when: backend_output.rc = 0
+      failed_when: backend_output.rc != 0
+      changed_when: backend_output.rc == 0
 
     - name: Replace Frontend Image Name in Env
       ansible.builtin.lineinfile:
@@ -137,4 +139,4 @@
       ansible.builtin.command:
         cmd: /opt/socialpredict/SocialPredict up
       register: start_output
-      changed_when: start_output.rc = 0
+      changed_when: start_output.rc == 0
