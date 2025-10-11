@@ -2,8 +2,8 @@ name: Deploy to Staging with Ansible
 
 on:
   workflow_dispatch:
-    repository_dispatch:
-      types: [deploy-to-staging]
+  repository_dispatch:
+    types: [deploy-to-staging]
 
 jobs:
   deploy:
