@@ -32,7 +32,7 @@
       community.docker.docker_image:
         name: "{{ item.RepoTags | first }}"
         state: absent
-      when: item.RepoTags is search('socialpredict-frontend:latest') or item.RepoTags is search('socialpredict-backend:latest')
+      when: item.RepoTags is search('ghcr.io/openpredictionmarkets/socialpredict-frontend:latest') or item.RepoTags is search('ghcr.io/openpredictionmarkets/socialpredict-backend:latest')
       loop: "{{ image_info.images }}"
       loop_control:
         label: "{{ item.RepoTags | first }}"
