@@ -11,11 +11,6 @@
         path: /opt/socialpredict/.env
       register: env_file
 
-    - name: Check if traefik.yaml exists
-      ansible.builtin.stat:
-        path: /opt/socialpredict/data/traefik/config/traefik.yaml
-      register: traefik_file
-
     - name: Get Docker Images
       community.docker.docker_host_info:
         images: true
@@ -46,73 +41,18 @@
         single_branch: true
         version: main
 
-    - name: Create Env File
-      ansible.builtin.copy:
-        src: /opt/socialpredict/.env.example
-        dest: /opt/socialpredict/.env
-        remote_src: true
-        mode: preserve
-      when: env_file.stat.islnk is not defined
-
-    - name: Create traefik.yaml File
-      ansible.builtin.copy:
-        src: /opt/socialpredict/data/traefik/config/traefik.template
-        dest: /opt/socialpredict/data/traefik/config/traefik.yaml
-        remote_src: true
-        mode: preserve
-      when: traefik_file.stat.islnk is not defined
-
-    - name: Replace Email in Traefik.yaml
-      ansible.builtin.lineinfile:
-        path: /opt/socialpredict/data/traefik/config/traefik.yaml
-        regexp: 'email: '
-        line: '      email: {{ PRODUCTION_EMAIL }}'
-      when: traefik_file.stat.islnk is not defined
-
-    - name: Change APP_ENV in Env
-      ansible.builtin.lineinfile:
-        path: /opt/socialpredict/.env
-        regexp: '^APP_ENV='
-        line: APP_ENV=production
-      when: env_file.stat.islnk is not defined
-
-    - name: Generate Random Database Password
-      ansible.builtin.lineinfile:
-        path: /opt/socialpredict/.env
-        regexp: '^POSTGRES_PASSWORD='
-        line: POSTGRES_PASSWORD={{ db_pass }}
-      when: env_file.stat.islnk is not defined
-
-    - name: Replace Domain in Env
-      ansible.builtin.lineinfile:
-        path: /opt/socialpredict/.env
-        regexp: '^DOMAIN='
-        line: DOMAIN='{{ PRODUCTION_DOMAIN }}'
-      when: env_file.stat.islnk is not defined
-
-    - name: Replace Domain_Url in Env
-      ansible.builtin.lineinfile:
-        path: /opt/socialpredict/.env
-        regexp: '^DOMAIN_URL='
-        line: DOMAIN_URL='https://{{ PRODUCTION_DOMAIN }}'
-      when: env_file.stat.islnk is not defined
-
-    - name: Replace Api_Url in Env
-      ansible.builtin.lineinfile:
-        path: /opt/socialpredict/.env
-        regexp: '^API_URL='
-        line: API_URL='https://{{ PRODUCTION_DOMAIN }}'
-      when: env_file.stat.islnk is not defined
-
-    - name: Replace Email in Env
-      ansible.builtin.lineinfile:
-        path: /opt/socialpredict/.env
-        regexp: '^EMAIL='
-        line: EMAIL='{{ PRODUCTION_EMAIL }}'
-      when: env_file.stat.islnk is not defined
+    - name: Initialize Application
+      ansible.builtin.command:
+        cmd: /opt/socialpredict/SocialPredict install -e production -d {{ PRODUCTION_DOMAIN }} -m {{ PRODUCTION_EMAIL }} 
+      register: init_app
+      changed_when: init_app.rc == 0
 
     - name: Start new containers
       ansible.builtin.command:
         cmd: /opt/socialpredict/SocialPredict up
       register: start_output
       changed_when: start_output.rc == 0
+
+    - name: Update Admin Password
+      ansible.builtin.command:
+        cmd: docker exec -i socialpredict-postgres-container /usr/local/bin/psql -U user -d socialpredict_db -c "UPDATE users SET password = '{{ ADMIN_PASSWORD }}', must_change_password = false WHERE username = 'admin'
