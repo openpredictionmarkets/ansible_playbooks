@@ -43,7 +43,7 @@
 
     - name: Initialize Application
       ansible.builtin.command:
-        cmd: /opt/socialpredict/SocialPredict install -e production -d {{ PRODUCTION_DOMAIN }} -m {{ PRODUCTION_EMAIL }} 
+        cmd: /opt/socialpredict/SocialPredict install -e production -d {{ PRODUCTION_DOMAIN }} -m {{ PRODUCTION_EMAIL }}
       register: init_app
       changed_when: init_app.rc == 0
 
@@ -55,4 +55,9 @@
 
     - name: Update Admin Password
       ansible.builtin.command:
-        cmd: docker exec -i socialpredict-postgres-container /usr/local/bin/psql -U user -d socialpredict_db -c "UPDATE users SET password = '{{ ADMIN_PASSWORD }}', must_change_password = false WHERE username = 'admin'
+        cmd: >-
+          docker exec -i socialpredict-postgres-container
+          /usr/local/bin/psql -U user -d socialpredict_db
+          -c "UPDATE users SET password = '{{ ADMIN_PASSWORD }}', must_change_password = false WHERE username = 'admin'
+      register: change_admin
+      changed_when: change_admin.rc == 0
