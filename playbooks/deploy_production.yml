@@ -58,6 +58,18 @@
       poll: 15
       changed_when: start_output.rc == 0
 
+    - name: Cleanup unused Docker artifacts
+      ansible.builtin.command:
+        cmd: >-
+          /bin/bash -lc
+          'if /opt/socialpredict/SocialPredict --help | grep -q "cleanup"; then
+            /opt/socialpredict/SocialPredict cleanup docker;
+          else
+            echo "SocialPredict cleanup command is not available; skipping Docker cleanup.";
+          fi'
+      register: docker_cleanup
+      changed_when: docker_cleanup.rc == 0
+
     - name: Update Admin Password
       ansible.builtin.command:
         cmd: >-
