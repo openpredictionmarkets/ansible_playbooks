@@ -46,12 +46,16 @@
       ansible.builtin.command:
         cmd: /opt/socialpredict/SocialPredict install -e production -d {{ STAGING_DOMAIN }} -m {{ STAGING_EMAIL }}
       register: init_app
+      async: 3600
+      poll: 15
       changed_when: init_app.rc == 0
 
     - name: Build new frontend image
       ansible.builtin.command:
         cmd: /usr/bin/docker build --no-cache -t socialpredict-staging-frontend -f /opt/socialpredict/docker/frontend/Dockerfile /opt/socialpredict/
       register: frontend_output
+      async: 3600
+      poll: 15
       failed_when: frontend_output.rc != 0
       changed_when: frontend_output.rc == 0
 
@@ -59,6 +63,8 @@
       ansible.builtin.command:
         cmd: /usr/bin/docker build --no-cache -t socialpredict-staging-backend -f /opt/socialpredict/docker/backend/Dockerfile /opt/socialpredict/
       register: backend_output
+      async: 3600
+      poll: 15
       failed_when: backend_output.rc != 0
       changed_when: backend_output.rc == 0
 
@@ -78,6 +84,8 @@
       ansible.builtin.command:
         cmd: /opt/socialpredict/SocialPredict up
       register: start_output
+      async: 1800
+      poll: 15
       changed_when: start_output.rc == 0
 
     - name: Update Admin Password
