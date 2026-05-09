@@ -81,12 +81,29 @@
         line: BACKEND_IMAGE_NAME='socialpredict-staging-backend'
 
     - name: Start new containers
-      ansible.builtin.command:
-        cmd: /opt/socialpredict/SocialPredict up
-      register: start_output
-      async: 1800
-      poll: 15
-      changed_when: start_output.rc == 0
+      block:
+        - name: Run SocialPredict up
+          ansible.builtin.command:
+            cmd: /opt/socialpredict/SocialPredict up
+          register: start_output
+          async: 1800
+          poll: 15
+          changed_when: start_output.rc == 0
+      rescue:
+        - name: Capture startup-writer logs
+          ansible.builtin.command:
+            cmd: /usr/bin/docker logs --tail 200 socialpredict-backend-container-startup-writer
+          register: startup_writer_logs
+          changed_when: false
+          failed_when: false
+
+        - name: Show startup-writer logs
+          ansible.builtin.debug:
+            var: startup_writer_logs.stdout_lines
+
+        - name: Fail with startup-writer context
+          ansible.builtin.fail:
+            msg: "Failed to start containers; startup writer is unhealthy."
 
     - name: Update Admin Password
       ansible.builtin.command:
