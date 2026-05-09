@@ -27,10 +27,13 @@
       community.docker.docker_image:
         name: "{{ item.RepoTags | first }}"
         state: absent
-      when: item.RepoTags is search('socialpredict-staging-frontend:latest') or item.RepoTags is search('socialpredict-staging-backend:latest')
+      when:
+        - item.RepoTags is defined
+        - (item.RepoTags | length) > 0
+        - "'socialpredict-staging-frontend:latest' in item.RepoTags or 'socialpredict-staging-backend:latest' in item.RepoTags"
       loop: "{{ image_info.images }}"
       loop_control:
-        label: "{{ item.RepoTags | first }}"
+        label: "{{ item.RepoTags[0] if (item.RepoTags is defined and (item.RepoTags | length) > 0) else item.Id }}"
 
     - name: Pull code from repository's main branch
       ansible.builtin.git:
@@ -43,12 +46,16 @@
       ansible.builtin.command:
         cmd: /opt/socialpredict/SocialPredict install -e production -d {{ STAGING_DOMAIN }} -m {{ STAGING_EMAIL }}
       register: init_app
+      async: 3600
+      poll: 15
       changed_when: init_app.rc == 0
 
     - name: Build new frontend image
       ansible.builtin.command:
         cmd: /usr/bin/docker build --no-cache -t socialpredict-staging-frontend -f /opt/socialpredict/docker/frontend/Dockerfile /opt/socialpredict/
       register: frontend_output
+      async: 3600
+      poll: 15
       failed_when: frontend_output.rc != 0
       changed_when: frontend_output.rc == 0
 
@@ -56,6 +63,8 @@
       ansible.builtin.command:
         cmd: /usr/bin/docker build --no-cache -t socialpredict-staging-backend -f /opt/socialpredict/docker/backend/Dockerfile /opt/socialpredict/
       register: backend_output
+      async: 3600
+      poll: 15
       failed_when: backend_output.rc != 0
       changed_when: backend_output.rc == 0
 
@@ -71,11 +80,36 @@
         regexp: '^BACKEND_IMAGE_NAME='
         line: BACKEND_IMAGE_NAME='socialpredict-staging-backend'
 
+    - name: Relax DB TLS requirement for staging
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^DB_REQUIRE_TLS='
+        line: DB_REQUIRE_TLS=false
+
     - name: Start new containers
-      ansible.builtin.command:
-        cmd: /opt/socialpredict/SocialPredict up
-      register: start_output
-      changed_when: start_output.rc == 0
+      block:
+        - name: Run SocialPredict up
+          ansible.builtin.command:
+            cmd: /opt/socialpredict/SocialPredict up
+          register: start_output
+          async: 1800
+          poll: 15
+          changed_when: start_output.rc == 0
+      rescue:
+        - name: Capture startup-writer logs
+          ansible.builtin.command:
+            cmd: /usr/bin/docker logs --tail 200 socialpredict-backend-container-startup-writer
+          register: startup_writer_logs
+          changed_when: false
+          failed_when: false
+
+        - name: Show startup-writer logs
+          ansible.builtin.debug:
+            var: startup_writer_logs.stdout_lines
+
+        - name: Fail with startup-writer context
+          ansible.builtin.fail:
+            msg: "Failed to start containers; startup writer is unhealthy."
 
     - name: Update Admin Password
       ansible.builtin.command:
@@ -85,3 +119,4 @@
           -c "UPDATE users SET password = '{{ ADMIN_PASSWORD }}', must_change_password = false WHERE username = 'admin'
       register: change_admin
       changed_when: change_admin.rc == 0
+      when: ADMIN_PASSWORD is defined

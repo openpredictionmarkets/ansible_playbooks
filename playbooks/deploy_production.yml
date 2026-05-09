@@ -27,12 +27,13 @@
       community.docker.docker_image:
         name: "{{ item.RepoTags | first }}"
         state: absent
-      when: >-
-        item.RepoTags is search('ghcr.io/openpredictionmarkets/socialpredict-frontend:latest')
-        or item.RepoTags is search('ghcr.io/openpredictionmarkets/socialpredict-backend:latest')
+      when:
+        - item.RepoTags is defined
+        - (item.RepoTags | length) > 0
+        - "'ghcr.io/openpredictionmarkets/socialpredict-frontend:latest' in item.RepoTags or 'ghcr.io/openpredictionmarkets/socialpredict-backend:latest' in item.RepoTags"
       loop: "{{ image_info.images }}"
       loop_control:
-        label: "{{ item.RepoTags | first }}"
+        label: "{{ item.RepoTags[0] if (item.RepoTags is defined and (item.RepoTags | length) > 0) else item.Id }}"
 
     - name: Pull code from repository's main branch
       ansible.builtin.git:
@@ -45,12 +46,16 @@
       ansible.builtin.command:
         cmd: /opt/socialpredict/SocialPredict install -e production -d {{ PRODUCTION_DOMAIN }} -m {{ PRODUCTION_EMAIL }}
       register: init_app
+      async: 3600
+      poll: 15
       changed_when: init_app.rc == 0
 
     - name: Start new containers
       ansible.builtin.command:
         cmd: /opt/socialpredict/SocialPredict up
       register: start_output
+      async: 1800
+      poll: 15
       changed_when: start_output.rc == 0
 
     - name: Update Admin Password
@@ -61,3 +66,4 @@
           -c "UPDATE users SET password = '{{ ADMIN_PASSWORD }}', must_change_password = false WHERE username = 'admin'
       register: change_admin
       changed_when: change_admin.rc == 0
+      when: ADMIN_PASSWORD is defined
