@@ -119,3 +119,4 @@
           -c "UPDATE users SET password = '{{ ADMIN_PASSWORD }}', must_change_password = false WHERE username = 'admin'
       register: change_admin
       changed_when: change_admin.rc == 0
+      when: ADMIN_PASSWORD is defined
