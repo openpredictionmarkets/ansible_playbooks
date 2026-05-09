@@ -107,9 +107,25 @@
           ansible.builtin.debug:
             var: startup_writer_logs.stdout_lines
 
-        - name: Fail with startup-writer context
-          ansible.builtin.fail:
-            msg: "Failed to start containers; startup writer is unhealthy."
+        - name: Wait for startup-writer to recover
+          ansible.builtin.command:
+            cmd: >-
+              /bin/bash -lc
+              'docker inspect socialpredict-backend-container-startup-writer
+              | grep -q "\"Status\": \"healthy\""'
+          register: startup_writer_wait
+          changed_when: false
+          retries: 24
+          delay: 5
+          until: startup_writer_wait.rc == 0
+
+        - name: Retry SocialPredict up after startup-writer recovery
+          ansible.builtin.command:
+            cmd: /opt/socialpredict/SocialPredict up
+          register: retry_start_output
+          async: 1800
+          poll: 15
+          changed_when: retry_start_output.rc == 0
 
     - name: Cleanup unused Docker artifacts
       ansible.builtin.command:
