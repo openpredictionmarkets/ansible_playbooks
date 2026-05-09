@@ -33,7 +33,7 @@
         - "'socialpredict-staging-frontend:latest' in item.RepoTags or 'socialpredict-staging-backend:latest' in item.RepoTags"
       loop: "{{ image_info.images }}"
       loop_control:
-        label: "{{ (item.RepoTags | default(['<untagged>'])) | first }}"
+        label: "{{ item.RepoTags[0] if (item.RepoTags is defined and (item.RepoTags | length) > 0) else item.Id }}"
 
     - name: Pull code from repository's main branch
       ansible.builtin.git:
