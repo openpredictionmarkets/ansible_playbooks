@@ -80,6 +80,12 @@
         regexp: '^BACKEND_IMAGE_NAME='
         line: BACKEND_IMAGE_NAME='socialpredict-staging-backend'
 
+    - name: Relax DB TLS requirement for staging
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^DB_REQUIRE_TLS='
+        line: DB_REQUIRE_TLS=false
+
     - name: Start new containers
       block:
         - name: Run SocialPredict up
