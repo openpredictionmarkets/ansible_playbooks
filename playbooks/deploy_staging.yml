@@ -27,10 +27,13 @@
       community.docker.docker_image:
         name: "{{ item.RepoTags | first }}"
         state: absent
-      when: item.RepoTags is search('socialpredict-staging-frontend:latest') or item.RepoTags is search('socialpredict-staging-backend:latest')
+      when:
+        - item.RepoTags is defined
+        - (item.RepoTags | length) > 0
+        - "'socialpredict-staging-frontend:latest' in item.RepoTags or 'socialpredict-staging-backend:latest' in item.RepoTags"
       loop: "{{ image_info.images }}"
       loop_control:
-        label: "{{ item.RepoTags | first }}"
+        label: "{{ (item.RepoTags | default(['<untagged>'])) | first }}"
 
     - name: Pull code from repository's main branch
       ansible.builtin.git:
