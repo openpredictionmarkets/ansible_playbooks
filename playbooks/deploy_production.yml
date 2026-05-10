@@ -52,6 +52,12 @@
       poll: 15
       changed_when: init_app.rc == 0
 
+    - name: Relax DB TLS requirement for local production database
+      ansible.builtin.lineinfile:
+        path: /opt/socialpredict/.env
+        regexp: '^DB_REQUIRE_TLS='
+        line: DB_REQUIRE_TLS=false
+
     - name: Start new containers
       block:
         - name: Run SocialPredict up
